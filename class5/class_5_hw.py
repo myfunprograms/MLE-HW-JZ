@@ -4,6 +4,29 @@
 import traceback
 import os
 import json
+import sys
+
+# Suppress transformers warnings before importing
+os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+
+class TeeOutput:
+    """Class to write output to both console and file"""
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.log = open(filename, 'w', encoding='utf-8')
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
+    def close(self):
+        self.log.close()
+
 import torch
 import warnings
 from datasets import Dataset, load_dataset
@@ -21,8 +44,15 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import time
 from datetime import datetime
+import logging
 
+# Suppress all warnings
 warnings.filterwarnings("ignore")
+
+# Suppress transformers logging
+logging.getLogger("transformers").setLevel(logging.ERROR)
+logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
+
 load_dotenv()
 
 class Class5HWTrainer:
@@ -204,7 +234,7 @@ class Class5HWTrainer:
                     target_modules = ["q_proj", "k_proj", "v_proj", "o_proj"]  # Focus on attention
                     r, alpha = 32, 64  # Moderate values
                 elif "phi" in model_name.lower():
-                    target_modules = ["q_proj", "k_proj", "v_proj"]
+                    target_modules = ["qkv_proj", "o_proj"]  # Phi-3.5 uses combined qkv_proj
                     r, alpha = 16, 32
                 elif "gemma" in model_name.lower():
                     target_modules = ["q_proj", "k_proj", "v_proj"]
@@ -224,8 +254,14 @@ class Class5HWTrainer:
                 )
                 
                 model = get_peft_model(model, lora_config)
+
+                # Enable gradient checkpointing to save memory
+                model.enable_input_require_grads()
+                if hasattr(model, 'gradient_checkpointing_enable'):
+                    model.gradient_checkpointing_enable()
+
                 model.print_trainable_parameters()
-                
+
                 print(f"✅ Loaded {model_name} with balanced LoRA")
                 return model, tokenizer, model_name
                 
@@ -335,7 +371,7 @@ class Class5HWTrainer:
                     target_modules = ["q_proj", "k_proj", "v_proj", "o_proj"]
                     r, alpha = 16, 32  # Smaller than regular LoRA
                 elif "phi" in model_name.lower():
-                    target_modules = ["q_proj", "k_proj", "v_proj"]
+                    target_modules = ["qkv_proj", "o_proj"]  # Phi-3.5 uses combined qkv_proj
                     r, alpha = 8, 16
                 elif "gemma" in model_name.lower():
                     target_modules = ["q_proj", "k_proj", "v_proj"]
@@ -398,7 +434,7 @@ class Class5HWTrainer:
                     target_modules = ["q_proj", "v_proj"]  # Minimal modules
                     r, alpha = 4, 8  # Very low rank
                 elif "phi" in model_name.lower():
-                    target_modules = ["q_proj", "v_proj"]
+                    target_modules = ["qkv_proj"]  # Phi-3.5 uses combined qkv_proj
                     r, alpha = 2, 4  # Ultra minimal
                 elif "gemma" in model_name.lower():
                     target_modules = ["q_proj", "v_proj"]
@@ -418,6 +454,12 @@ class Class5HWTrainer:
                 )
 
                 model = get_peft_model(model, lora_config)
+
+                # Enable gradient checkpointing to save memory
+                model.enable_input_require_grads()
+                if hasattr(model, 'gradient_checkpointing_enable'):
+                    model.gradient_checkpointing_enable()
+
                 model.print_trainable_parameters()
 
                 print(f"✅ Loaded {model_name} with LowLoRA")
@@ -440,8 +482,8 @@ class Class5HWTrainer:
         training_args = TrainingArguments(
             output_dir=output_dir,
             num_train_epochs=5,
-            per_device_train_batch_size=4,
-            gradient_accumulation_steps=1,
+            per_device_train_batch_size=1,  # Reduced from 4 to 1 for memory efficiency
+            gradient_accumulation_steps=4,  # Increased from 1 to 4 to maintain effective batch size
             warmup_steps=5,
             learning_rate=5e-4,
             fp16=False,
@@ -1018,8 +1060,8 @@ Performance Analysis:
         training_args = TrainingArguments(
             output_dir=output_dir,
             num_train_epochs=8,
-            per_device_train_batch_size=2 if self.device == "cuda" else 1,
-            gradient_accumulation_steps=2,
+            per_device_train_batch_size=1,  # Reduced to 1 for memory efficiency
+            gradient_accumulation_steps=4,  # Increased to maintain effective batch size
             warmup_steps=10,
             learning_rate=3e-4,
             fp16=False,
@@ -1867,4 +1909,20 @@ Examples:
 """)
         sys.exit(0)
 
-    main(quick_mode=quick_mode, num_samples=num_samples, methods=methods)
+    # Setup output redirection to both console and file
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    log_filename = f"training_output_{timestamp}.log"
+    tee_output = TeeOutput(log_filename)
+    original_stdout = sys.stdout
+    sys.stdout = tee_output
+
+    print(f"Output is being saved to: {log_filename}")
+    print("="*80)
+
+    try:
+        main(quick_mode=quick_mode, num_samples=num_samples, methods=methods)
+    finally:
+        # Restore original stdout and close log file
+        sys.stdout = original_stdout
+        tee_output.close()
+        print(f"\nOutput has been saved to: {log_filename}")

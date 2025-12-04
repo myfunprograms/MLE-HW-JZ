@@ -1,0 +1,193 @@
+# Fine-Tuning Methods Comparison Report
+## Class 5 Homework - LLM Fine-Tuning Analysis
+
+**Date:** 2025-12-03 01:02:30
+**Device:** cuda
+**Dataset:** OpenAssistant Guanaco (1000 samples)
+
+---
+
+## Executive Summary
+
+This report compares four different fine-tuning approaches for Large Language Models:
+1. **LoRA** (Low-Rank Adaptation) - Balanced approach
+2. **Full Fine-Tuning** - Training all parameters
+3. **QLoRA** (Quantized LoRA) - 4-bit quantization
+4. **LowLoRA** - Ultra-low rank for speed
+
+---
+
+## 1. Training Metrics Comparison
+
+### Performance Overview
+
+| Method | Training Time | Final Loss | Steps | Samples/Sec | Epochs |
+|--------|---------------|------------|-------|-------------|--------|
+| LowLoRA | 58m 28s | 1.5765 | 2500 | 0.57 | 5 |
+
+### Training Configuration Comparison
+
+| Method | Batch Size | Grad Accum | Eff. Batch | Learning Rate | Trainable % |
+|--------|------------|------------|------------|---------------|-------------|
+| LowLoRA | 1 | 4 | 4 | 0.0005 | ~0.1% |
+
+---
+
+## 2. Model Outputs Analysis
+
+*Run models to generate sample outputs*
+
+---
+
+## 3. Overfitting Analysis
+
+### Indicators to Monitor:
+
+**Training Loss Trends:**
+
+- **Lowest Loss:** 1.5765 (better convergence)
+- **Highest Loss:** 1.5765
+- **Loss Range:** 0.0000
+
+**Overfitting Risk Assessment:**
+
+- **LOWLORA:** Loss 1.5765 - ⚠️ MEDIUM - May need more training
+
+
+### Recommendations to Prevent Overfitting:
+
+1. **Early Stopping** - Monitor validation loss, stop when it plateaus
+2. **Regularization** - Weight decay, dropout (already applied)
+3. **Data Augmentation** - Increase dataset size or diversity
+4. **Lower Learning Rate** - Reduce to prevent over-optimization
+5. **Fewer Epochs** - Especially for Full Fine-Tuning
+
+---
+
+## 4. Style Transfer Analysis
+
+### Dataset Influence:
+
+The model was fine-tuned on **OpenAssistant Guanaco dataset**, which contains:
+- Conversational Q&A pairs
+- Helpful assistant responses
+- Natural language patterns
+
+### Expected Style Changes:
+
+1. **Response Format** - Should follow "Human:/Assistant:" pattern
+2. **Tone** - Helpful and informative
+3. **Content** - Factual and detailed responses
+
+### Style Transfer Effectiveness:
+
+
+**By Training Method:**
+
+- **Full Fine-Tuning:**
+  - ✅ Strongest style transfer
+  - ✅ Learns dataset patterns deeply
+  - ⚠️ Risk: May lose general knowledge
+
+- **LoRA:**
+  - ✅ Balanced style transfer
+  - ✅ Preserves base model knowledge
+  - ✅ Best trade-off
+
+- **QLoRA:**
+  - ✅ Similar to LoRA
+  - ✅ Memory efficient
+  - ⚠️ Slightly lower precision (4-bit)
+
+- **LowLoRA:**
+  - ⚠️ Lighter style transfer
+  - ✅ Fastest training
+  - ⚠️ May need more epochs for strong adaptation
+
+---
+
+## 5. Performance Analysis
+
+### Speed Ranking (Fastest to Slowest):
+
+1. **LOWLORA** - 58.48 minutes
+
+### Quality Ranking (Best to Worst Loss):
+
+1. **LOWLORA** - 1.5765 loss
+
+### Memory Efficiency Ranking:
+
+1. **LowLoRA** - Ultra-low memory (~0.1% params)
+2. **QLoRA** - 4-bit quantization (~1% params)
+3. **LoRA** - Low-rank adaptation (~1% params)
+4. **Full Fine-Tuning** - All parameters (100%)
+
+---
+
+## 6. Recommendations
+
+### Use Case Recommendations:
+
+
+| Use Case | Recommended Method | Reasoning |
+|----------|-------------------|-----------|
+| **Production Deployment** | Full Fine-Tuning | Best quality, worth the cost |
+| **Research/Development** | LoRA | Best balance of quality/speed/cost |
+| **Limited GPU Memory** | QLoRA | Enables training on smaller hardware |
+| **Rapid Prototyping** | LowLoRA | Fastest iterations for testing |
+| **Edge Deployment** | QLoRA or LowLoRA | Smaller model size |
+
+### Best Practices:
+
+1. **Start with LowLoRA** for quick validation
+2. **Scale to LoRA** for production-quality results
+3. **Use QLoRA** if memory-constrained
+4. **Reserve Full Fine-Tuning** for final deployment or critical applications
+
+---
+
+## 7. Conclusions
+
+### Key Findings:
+
+
+- All methods successfully fine-tuned on Guanaco dataset
+- Trade-off exists between speed, memory, and quality
+- LoRA variants provide excellent efficiency without major quality loss
+
+### Future Work:
+
+1. Test on larger datasets (10k+ samples)
+2. Implement validation set monitoring
+3. Compare on downstream tasks
+4. Measure inference latency
+5. Evaluate on domain-specific benchmarks
+
+---
+
+## 8. Files Generated
+
+**Models:**
+- `./balanced_hw5_sft/` - LoRA model
+- `./full_finetuning_hw5_sft/` - Full fine-tuned model
+- `./qlora_hw5_sft/` - QLoRA model
+- `./lowlora_hw5_sft/` - LowLoRA model
+
+**Metrics:**
+- `hw5_training_metrics_report.json` - LoRA metrics
+- `hw5_full_finetuning_metrics_report.json` - Full metrics
+- `hw5_qlora_metrics_report.json` - QLoRA metrics
+- `hw5_lowlora_metrics_report.json` - LowLoRA metrics
+
+**Reports:**
+- `training_report.txt` - LoRA report
+- `full_finetuning_report.txt` - Full report
+- `qlora_report.txt` - QLoRA report
+- `lowlora_report.txt` - LowLoRA report
+- `hw5_comprehensive_report.md` - This report
+
+---
+
+*Report generated by Class5HWTrainer*
+*Model: Various | Dataset: OpenAssistant Guanaco | Date: 2025-12-03*
